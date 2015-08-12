@@ -278,7 +278,6 @@
             ).then(
                 function(docjs){
                     r2.modalWindowLoading.endDownloadingMetafile();
-                    console.log(r2.ctx.pdfjs_url, docjs);
                     return docjs;
                 }
             );

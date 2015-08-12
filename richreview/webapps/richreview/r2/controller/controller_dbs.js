@@ -137,7 +137,7 @@ var r2Sync = (function(){
         $("#uploading_indicator").toggleClass("show", true);
         now_uploading_cmd = true;
         cmd_to_upload = cmd_upload_q.shift();
-
+        console.log('\nUp:', cmd_to_upload);
         uploadAudioBlobIfNeeded(cmd_to_upload).then(
             function(){
                 return uploadCmd(cmd_to_upload);
@@ -168,6 +168,7 @@ var r2Sync = (function(){
         var job = function(i){
             setTimeout(function(){
                 if(i != cmdObjs.length){
+                    console.log('Dn:', cmdObjs[i]);
                     if(!((cmdObjs[i].user+"_"+cmdObjs[i].time) in cmds_my_own)){
                         if(r2.cmd.executeCmd(r2App.doc, cmdObjs[i], false)){
                             r2.commentHistory.consumeCmd(cmdObjs[i]);
