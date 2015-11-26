@@ -22,7 +22,7 @@
 
         pub.resize = function(width){
             if($tc_cur_page)
-                $tc_cur_page.css('font-size', width+'px');
+                $tc_cur_page.css('font-size', width/r2Const.FONT_SIZE_SCALE+'px');
         };
 
         pub.setCurPage = function(n){
@@ -49,17 +49,54 @@
 
         pub.remove = function(annot_id){
             var annot_id_esc = r2.util.escapeDomId(annot_id);
+
+            var parentPiece=$('#'+annot_id_esc).parent('.tc_piece');
             $('#'+annot_id_esc).remove();
+            pub.updateCommentCount(parentPiece);      
+                
         };
 
-        pub.relayoutPage = function(){
-            var contents = $tc_cur_page.find('.tc_content');
-            for(var i = 0, l = contents.length; i < l; ++i){
-                if(contents[i].dom_model){
-                    var x = 0;
+        pub.updateCommentCount = function($parentPiece){
+            var newCountKeyboard=0;
+            var newCountVoice=0;
+            if($parentPiece){
+                var parent=$parentPiece.parent('.tc_piecegroup');
+                if(parent){
+
+                        var savedText=parent.attr('aria-label');
+                        var newText="";
+                        if(savedText){
+                            var index=savedText.indexOf(' It has ');
+                            if(index!=-1){
+                                newText=savedText.substring(0,index);
+                            }
+                            else{
+                                newText=savedText;
+                            }
+
+                        }
+
+                        newCountKeyboard=$parentPiece.children('.tc_piecegroup.tc_comment_keyboard').length;
+                        if(newCountKeyboard>0){
+                            
+                            newText=newText+' It has text comment count ' + newCountKeyboard;
+                        }
+
+                        newCountVoice=$parentPiece.children('.tc_piecegroup.tc_comment_voice').length;
+                        if(newCountVoice>0){
+                            
+                            if(newCountKeyboard>0)
+                                newText=newText+' and voice comment count ' + newCountVoice;
+                            else
+                                newText=newText+' It has voice comment count ' + newCountVoice;
+                        }
+
+                        parent.attr('aria-label',newText);
+
+                    }
                 }
-            }
         };
+
 
         /* submodule for data loading bgn */
         var loader = (function(){
@@ -137,9 +174,9 @@
 
         pub.createBodyText = function($tight_col, piece_text){
             var $comment = appendPieceGroup($tight_col, 'tc_comment_text');
-            console.log(piece_text);
             $comment.attr('aria-label', typeof piece_text.GetPieceText() === 'string' ? piece_text.GetPieceText() : 'empty texts');
-            $comment.attr('role', 'document');
+            //$comment.attr('role', 'document');
+            $comment.attr('role', 'application');
             var $piece = $(document.createElement('div'));
             $piece.toggleClass('tc_piece', true);
 
@@ -154,11 +191,10 @@
 
             var $content = $(document.createElement('div'));
             $content.toggleClass('tc_content', true);
-            $content.width(content_size.x+'em');
-            $content.height(content_size.y+'em');
+            $content.width(content_size.x*r2Const.FONT_SIZE_SCALE+'em');
+            $content.height(content_size.y*r2Const.FONT_SIZE_SCALE+'em');
 
             $piece.append($content);
-            setFocusSelection($comment, id);
             $comment.append($piece);
         };
 
@@ -176,7 +212,8 @@
             if(dom_anchor){
                 var $comment = appendPieceGroup($anchor, 'tc_comment_texttearing');
                 $comment.attr('aria-label', 'whitespace');
-                $comment.attr('role', 'document');
+                //$comment.attr('role', 'document');
+                $comment.attr('role', 'application');
                 var id = piece_teared.GetId();
 
                 var $piece = $(document.createElement('div'));
@@ -196,17 +233,21 @@
                 var $content = $(document.createElement('div'));
                 $content.toggleClass('tc_content', true);
                 $content.toggleClass('tc_piece_text', true);
-                $content.height(piece_teared.GetContentSize().y+'em');
-                $content.width(dom_anchor.pp.w+'em');
+                $content.height(piece_teared.GetContentSize().y*r2Const.FONT_SIZE_SCALE+'em');
+                $content.width(dom_anchor.pp.w*r2Const.FONT_SIZE_SCALE+'em');
                 $content[0].dom_model = piece_teared;
                 $piece.append($content);
 
-                setFocusSelection($comment, id);
                 $comment.append($piece);
                 $anchor.children().first().after($comment);
                 return true;
             }
             return false;
+        };
+
+        pub.updateSizeTextTearing = function(piece_teared){
+            var $piece = $('#'+piece_teared.GetId());
+            $piece.find('.tc_content').height(piece_teared.GetContentSize().y*r2Const.FONT_SIZE_SCALE+'em');
         };
 
         pub.createCommentVoice = function(annot, pagen, live_recording){
@@ -270,7 +311,7 @@
                         ;
                     });
                     r2.radialMenu.addBtnCircular($rm, 'fa-trash', 'erase', function(){
-                        if(r2.userGroup.cur_user === user.name){
+                        if(r2.userGroup.cur_user.name === user.name){
                             var annottodelete = r2App.annots[annot_id];
                             if(r2.removeAnnot(annot_id, true, false)){ // askuser, mute
                                 r2Sync.PushToUploadCmd(annottodelete.ExportToCmdDeleteComment());
@@ -284,7 +325,7 @@
                     r2.radialMenu.finishInit($rm, user.color_radial_menu_unselected, user.color_radial_menu_selected);
 
                     var rm_x = getCommentTtIndentX($comment)-r2Const.RADIALMENU_OFFSET_X*rm_ratio;
-                    $rm.css('left', (rm_x)/rm_size+'em');
+                    $rm.css('left', (rm_x)/rm_size/r2Const.RAIDALMENU_FONTSIZE_SCALE+'em');
                     $comment.prepend($rm);
                 }
 
@@ -322,11 +363,10 @@
 
                 var $content = $(document.createElement('div'));
                 $content.toggleClass('tc_content', true);
-                $content.height(r2Const.PIECEAUDIO_HEIGHT+'em');
-                $content.width($anchor.get(0).pp.w+'em');
+                $content.height(r2Const.PIECEAUDIO_HEIGHT*r2Const.FONT_SIZE_SCALE+'em');
+                $content.width($anchor.get(0).pp.w*r2Const.FONT_SIZE_SCALE+'em');
 
                 $piece.append($content);
-                setFocusSelection($comment, id);
                 $comment.append($piece);
             }
         };
@@ -359,8 +399,7 @@
                 $piece.append($dom_piecekeyboard);
                 $dom_piecekeyboard.toggleClass('tc_content', true);
                 $dom_piecekeyboard.toggleClass('tc_piece_keyboard', true);
-                $dom_piecekeyboard.css('width', dom_anchor.pp.w+'em');
-                setFocusSelection($comment, pid);
+                $dom_piecekeyboard.css('width', dom_anchor.pp.w*r2Const.FONT_SIZE_SCALE+'em');
                 $comment.append($piece);
 
                 {/* add menu */
@@ -399,7 +438,7 @@
 
                     var rm_x = getPieceTtIndentX($piece)-r2Const.RADIALMENU_OFFSET_X*rm_ratio;
 
-                    $rm.css('left', (rm_x)/rm_size+'em');
+                    $rm.css('left', (rm_x)/rm_size/r2Const.RAIDALMENU_FONTSIZE_SCALE+'em');
                     //$rm.css('top', (rm_size*0.4*rm_btn_size)/rm_size+'em');
 
                     $comment.prepend($rm);
@@ -416,16 +455,17 @@
             var $comment = $(document.createElement('div'));
             $comment.toggleClass('tc_piecegroup', true);
             $comment.toggleClass(cls, true);
-            pub.focusCtrl.setFocusable($comment);
-
-            $target.append($comment);
-            return $comment;
-        };
-
-        var setFocusSelection = function($comment, pid){
-            $comment.off('focusin').on('focusin', function(){
-                r2App.pieceSelector.set(pid);
+            $comment.mousedown(function(event){
+                //event.preventDefault(); // prevent focus
             });
+            pub.focusCtrl.setFocusable($comment);
+            $target.append($comment);
+
+            if($target.is('.tc_piece')){
+                pub.updateCommentCount($target);
+            }
+
+            return $comment;
         };
 
         var setPieceProperties = function($target, id, time, w, tt_depth, tt_x, tt_w){
@@ -475,7 +515,13 @@
             var last_focused_comment = null;
 
             pub_fc.focusPiece = function(annot_id){
-                $tc_cur_page.find('#'+r2.util.escapeDomId(annot_id)).focus();
+                var $p = $tc_cur_page.find('#'+r2.util.escapeDomId(annot_id));
+                if($p.hasClass('tc_piece')){
+                    $p.parent().focus();
+                }
+                else{
+                    $p.focus();
+                }
             };
 
             pub_fc.next = function(){
